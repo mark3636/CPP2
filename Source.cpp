@@ -11,22 +11,168 @@
 #include <iterator>
 #include <stdlib.h>
 #include <functional>
-#include <ctime>
+#include <math.h>
+
+
+std::vector<std::string> split(const std::string &text, char sep) {
+	std::vector<std::string> tokens;
+	std::size_t start = 0, end = 0;
+	while ((end = text.find(sep, start)) != std::string::npos) {
+		if (end != start) {
+			tokens.push_back(text.substr(start, end - start));
+		}
+		start = end + 1;
+	}
+	if (end != start) {
+		tokens.push_back(text.substr(start));
+	}
+	return tokens;
+}
+
+
+class Date {
+private:
+	int day;
+	int month;
+	int year;
+
+protected:
+	static int Days(int month, int year) {
+		return 28 + ((month + (int)std::floor(month / 8)) % 2) + 2 % month + (int)std::floor((1 + (1 - (year % 4 + 2) % (year % 4 + 1)) *
+			((year % 100 + 2) % (year % 100 + 1)) + (1 - (year % 400 + 2) % (year % 400 + 1))) / month) + (int)std::floor(1 / month) -
+			(int)std::floor(((1 - (year % 4 + 2) % (year % 4 + 1)) * ((year % 100 + 2) % (year % 100 + 1)) +
+			(1 - (year % 400 + 2) % (year % 400 + 1))) / month);
+	}
+
+public:
+	Date(int _day, int _month, int _year) {
+		day = _day;
+		month = _month;
+		year = _year;
+	}
+
+	Date() {
+		day = 1;
+		month = 1;
+		year = 1900;
+	}
+
+	Date(const Date &other) {
+		day = other.day;
+		month = other.month;
+		year = other.year;
+	}
+
+	~Date(){}
+
+	bool TryStrToDate(std::string date) {
+		std::vector<std::string> tokens = split(date, '/');
+		if (tokens.size() != 3) return false;
+		int _day = 0, _month = 0, _year = 0;
+		try {
+			_month = std::stoi(tokens[1]);
+			if (_month < 1 || _month > 12) return false;
+			_year = std::stoi(tokens[2]);
+			if (_year < 1900 || _year > 2017) return false;
+			_day = std::stoi(tokens[0]);
+			if (_day < 1 || _day > Days(_month, _year)) return false;
+		}
+		catch (...) {
+			return false;
+		}
+		day = _day;
+		month = _month;
+		year = _year;
+
+		return true;
+	}
+
+
+
+	static bool TryStrToDate(std::string str, Date &date) {
+		std::vector<std::string> tokens = split(str, '/');
+		if (tokens.size() != 3) return false;
+		int _day = 0, _month = 0, _year = 0;
+		try {
+			_month = std::stoi(tokens[1]);
+			if (_month < 1 || _month > 12) return false;
+			_year = std::stoi(tokens[2]);
+			if (_year < 1900 || _year > 2017) return false;
+			_day = std::stoi(tokens[0]);
+			if (_day < 1 || _day > Days(_month, _year)) return false;
+		}
+		catch (...) {
+			return false;
+		}
+		date.day = _day;
+		date.month = _month;
+		date.year = _year;
+
+		return true;
+	}
+
+	Date& operator=(const Date &date) {
+		year = date.year;
+		month = date.month;
+		day = date.day;
+		return *this;
+	}
+
+	bool operator==(const Date& other)
+	{
+		return day == other.day &&
+			month == other.month &&
+			year == other.year;
+	}
+
+	bool operator<(const Date& other) {
+		if (year < other.year) return true;
+		if (year == other.year) {
+			if (month < other.month) return true;
+			if (month == other.month) return day < other.day;
+		}
+		return false;
+	}
+
+	std::string ToString() const {
+		return std::to_string(day) + '/' + std::to_string(month) + '/' + std::to_string(year);
+	}
+
+	std::ostream& operator<<(std::ostream& cout) {
+		cout << ToString();
+		return cout;
+	}
+
+	std::istream& operator>>(std::istream& cin) {
+		std::string buf;
+		bool ok = false;
+		while (!ok)
+		{
+			cin >> buf;
+			ok = TryStrToDate(buf, *this);
+			if (!ok)
+				std::cout << "Wrong date!!!!";
+		}
+		return cin;
+	}
+};
+
+Date inputDate(std::string message);
 
 class  Book {
 
 public:
 	int libraryCard;
 	std::string subSurname;
-	std::string issueDate;
-	std::string returnDate;
+	Date issueDate;
+	Date returnDate;
 	std::string author;
 	std::string title;
 	int publicationYear;
 	std::string publishingHouse;
 	unsigned short price;
 
-	Book(int lC, std::string sS, std::string iD, std::string rD, std::string atr, std::string ttl, int pY, std::string pH, int prc) {
+	Book(int lC, std::string sS, Date &iD, Date &rD, std::string atr, std::string ttl, int pY, std::string pH, int prc) {
 		libraryCard = lC;
 		subSurname = sS;
 		issueDate = iD;
@@ -41,8 +187,8 @@ public:
 	Book() {
 		libraryCard = 0;
 		subSurname = "";
-		issueDate = "";
-		returnDate = "";
+		issueDate = Date();
+		returnDate = Date();
 		author = "";
 		title = "";
 		publicationYear = 2000;
@@ -62,8 +208,8 @@ public:
 std::ostream& operator<<(std::ostream &os, const Book &book) {
 	os << std::to_string(book.libraryCard) + "\t" +
 		book.subSurname + "\t" +
-		book.issueDate + "\t" +
-		book.returnDate + "\t" +
+		book.issueDate.ToString() + "\t" +
+		book.returnDate.ToString() + "\t" +
 		book.author + "\t" +
 		book.title + "\t" +
 		std::to_string(book.publicationYear) + "\t" +
@@ -74,10 +220,13 @@ std::ostream& operator<<(std::ostream &os, const Book &book) {
 }
 
 std::istream& operator>>(std::istream &is, Book &book) {
+	std::string iDate, rDate;
 	is >> book.libraryCard;
 	is >> book.subSurname;
-	is >> book.issueDate;
-	is >> book.returnDate;
+	is >> iDate;
+	book.issueDate.TryStrToDate(iDate);
+	is >> rDate;
+	book.returnDate.TryStrToDate(rDate);
 	is >> book.author;
 	is >> book.title;
 	is >> book.publicationYear;
@@ -88,6 +237,8 @@ std::istream& operator>>(std::istream &is, Book &book) {
 }
 
 Book inputBook();
+void inputBookChanged(std::vector<Book>::iterator &it);
+
 
 //Predicats and Comparators
 
@@ -101,10 +252,6 @@ public:
 	bool operator() (Book book) {
 		return card == book.libraryCard;
 	}
-
-	bool operator() (Book book1, Book book2) {
-		return book1.libraryCard == book2.libraryCard;
-	}
 };
 
 class AuthorPred {
@@ -116,10 +263,6 @@ public:
 
 	bool operator() (Book book) {
 		return author == book.author;
-	}
-
-	bool operator() (Book book1, Book book2) {
-		return book1.author == book2.author;
 	}
 };
 
@@ -133,25 +276,19 @@ public:
 	bool operator() (Book book) {
 		return house == book.publishingHouse;
 	}
-
-	bool operator() (Book book1, Book book2) {
-		return book1.publishingHouse == book2.publishingHouse;
-	}
 };
 
 class ReturnDatePred {
 protected:
-	std::string date;
+	Date date;
 
 public:
-	ReturnDatePred(std::string s) :date(s) {}
+	ReturnDatePred(Date _date) {
+		date = _date;
+	}
 
 	bool operator() (Book book) {
 		return date == book.returnDate;
-	}
-
-	bool operator() (Book book1, Book book2) {
-		return book1.returnDate == book2.returnDate;
 	}
 };
 
@@ -248,12 +385,12 @@ public:
 
 class ReturnDateAcc {
 protected:
-	std::string date;
+	Date date;
 	std::vector<Book> *v;
 
 public:
-	ReturnDateAcc(std::string s) {
-		date = s;
+	ReturnDateAcc(Date _date) {
+		date = _date;
 		v = new std::vector<Book>();
 	}
 
@@ -310,7 +447,8 @@ public:
 	}
 
 	void change(std::vector<Book>::iterator &it) {
-		*it = inputBook();
+		try { inputBookChanged(it); }
+		catch (const char* str) { return; }
 	}
 
 	bool findByLibraryCard(int card, std::vector<Book>::iterator &it) {
@@ -331,7 +469,7 @@ public:
 		return it != vect.end();
 	}
 
-	bool findByReturnDate(std::string date, std::vector<Book>::iterator &it) {
+	bool findByReturnDate(Date date, std::vector<Book>::iterator &it) {
 		ReturnDatePred pred = ReturnDatePred(date);
 		it = std::find_if(vect.begin(), vect.end(), pred);
 		return it != vect.end();
@@ -341,7 +479,7 @@ public:
 		LibraryCardPred pred = LibraryCardPred(card);
 		LibraryCardComp comp = LibraryCardComp();
 		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(card, "", "", "", "", "", 1990, "", 0);
+		P b = Book(card, "", Date(), Date(), "", "", 1990, "", 0);
 		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
 			it = std::find_if(vect.begin(), vect.end(), pred);
 			return true;
@@ -353,7 +491,7 @@ public:
 		AuthorPred pred = AuthorPred(author);
 		AuthorComp comp = AuthorComp();
 		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(0, "", "", "", author, "", 1990, "", 0);
+		P b = Book(0, "", Date(), Date(), author, "", 1990, "", 0);
 		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
 			it = std::find_if(vect.begin(), vect.end(), pred);
 			return true;
@@ -365,7 +503,7 @@ public:
 		PublishingHousePred pred = PublishingHousePred(house);
 		PublishingHouseComp comp = PublishingHouseComp();
 		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(0, "", "", "", "", "", 1990, house, 0);
+		P b = Book(0, "",Date(), Date(), "", "", 1990, house, 0);
 		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
 			it = std::find_if(vect.begin(), vect.end(), pred);
 			return true;
@@ -373,11 +511,11 @@ public:
 		return false;
 	}
 
-	bool findByReturnDateBinary(std::string date, std::vector<Book>::iterator &it) {
+	bool findByReturnDateBinary(Date date, std::vector<Book>::iterator &it) {
 		ReturnDatePred pred = ReturnDatePred(date);
 		ReturnDateComp comp = ReturnDateComp();
 		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(0, "", "", date, "", "", 1990, "", 0);
+		P b = Book(0, "", Date(), date, "", "", 1990, "", 0);
 		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
 			it = std::find_if(vect.begin(), vect.end(), pred);
 			return true;
@@ -403,7 +541,7 @@ public:
 		subv = acc.getSet();
 	}
 
-	void findSubSetByReturnDate(std::string date) {
+	void findSubSetByReturnDate(Date date) {
 		ReturnDateAcc acc = ReturnDateAcc(date);
 		std::for_each(vect.begin(), vect.end(), acc);
 		subv = acc.getSet();
@@ -429,6 +567,7 @@ public:
 	}
 
 	void consoleOutputSub() {
+		printCaption();
 		copy(subv.begin(), subv.end(), std::ostream_iterator<P>(std::cout, "\n"));
 	}
 
@@ -468,6 +607,10 @@ public:
 		else
 			std::cout << "Error while opening file!" << std::endl;
 	}
+
+	int subSize() {
+		return subv.size();
+	}
 };
 
 
@@ -479,6 +622,7 @@ int inputInt(std::string message, int min = 0, int max = 10000) {
 		std::cout << message;
 		try {
 			std::cin >> str;
+			if (str == "skip") return 0;
 			if (str == "exit") throw "exit";
 			res = std::stoi(str);
 			while (res < min || res > max) {
@@ -493,56 +637,28 @@ int inputInt(std::string message, int min = 0, int max = 10000) {
 	}
 }
 
-std::vector<std::string> split(const std::string &text, char sep) {
-	std::vector<std::string> tokens;
-	std::size_t start = 0, end = 0;
-	while ((end = text.find(sep, start)) != std::string::npos) {
-		if (end != start) {
-			tokens.push_back(text.substr(start, end - start));
-		}
-		start = end + 1;
-	}
-	if (end != start) {
-		tokens.push_back(text.substr(start));
-	}
-	return tokens;
-}
-
-bool checkDate(std::string date) {
-	std::vector<std::string> tokens = split(date, '/');
-	if (tokens.size() != 3) return false;
-	try {
-		int day = std::stoi(tokens[0]);
-		if (day < 1 || day > 31) return false;
-		int month = std::stoi(tokens[1]);
-		if (month < 1 || month > 12) return false;
-		int year = std::stoi(tokens[2]);
-		if (year < 1900 || year > 2017) return false;
-	}
-	catch (...) {
-		return false;
-	}
-	return true;
-}
-
-std::string inputDate(std::string message = "Input date in format dd/mm/yyyy : ") {
+Date inputDate(std::string message = "Input date in format dd/mm/yyyy : ") {
 	std::string res;
+	Date date = Date();
 
 	std::cout << message;
-	std::cin >> res;
+	bool ok = false;
 
-	while (true) {
-		if (checkDate(res)) return res;
-		std::cout << "Wrong date. Repeat: ";
+	while (!ok) {
 		std::cin >> res;
+		if (res == "skip") return date;
+		ok = date.TryStrToDate(res);
+		if (!ok) std::cout << "Wrong date. Repeat: ";
 	}
+
+	return date;
 }
 
 Book inputBook() {
 	int libraryCard;
 	std::string subSurname;
-	std::string issueDate;
-	std::string returnDate;
+	Date issueDate;
+	Date returnDate;
 	std::string author;
 	std::string title;
 	int publicationYear;
@@ -556,6 +672,7 @@ Book inputBook() {
 
 	std::cout << "Enter subscriber surname: ";
 	std::cin >> subSurname;
+	if (subSurname == "exit") throw "exit";
 
 	issueDate = inputDate("Enter issue date(dd/mm/yyyy): ");
 
@@ -563,21 +680,70 @@ Book inputBook() {
 
 	std::cout << "Enter author: ";
 	std::cin >> author;
+	if (author == "exit") throw "exit";
 
 	std::cout << "Enter title: ";
 	std::cin >> title;
+	if (title == "exit") throw "exit";
 
-	publicationYear = inputInt("Enter publication year: ", 1700, 2017);
+	publicationYear = inputInt("Enter publication year: ", 1900, 2017);
 
 	std::cout << "Enter publishing house: ";
 	std::cin >> publishingHouse;
+	if (publishingHouse == "exit") throw "exit";
 
 	price = inputInt("Enter price: ");
 
 	return Book(libraryCard, subSurname, issueDate, returnDate, author, title, publicationYear, publishingHouse, price);
 }
 
+void inputBookChanged(std::vector<Book>::iterator &it) {
+	std::cout << "-------------BOOK-------------" << std::endl;
+	std::cout << "Type \"skip\" to skip" << std::endl;
+	int intTmp;
+	std::string strTmp;
+	Date dateTmp;
+	Date defDt = Date();
 
+	intTmp = inputInt("Enter library card(default: " + std::to_string(it->libraryCard) + "): ");
+	if (intTmp != 0) it->libraryCard = intTmp;
+
+	std::cout << "Enter subscriber surname(dafault: " + it->subSurname + "): ";
+	std::cin >> strTmp;
+	if (strTmp != "skip") it->subSurname = strTmp;
+	if (strTmp == "exit") throw "exit";
+
+	strTmp = it->issueDate.ToString();
+	dateTmp = inputDate("Enter date in format(dd/mm/yyyy)(default: " + strTmp + "):");
+	if (dateTmp == defDt);
+	else it->issueDate = dateTmp;
+
+	strTmp = it->returnDate.ToString();
+	dateTmp = inputDate("Enter date in format(dd/mm/yyyy)(default: " + strTmp + "):");
+	if (dateTmp == defDt);
+	else it->returnDate= dateTmp;
+
+	std::cout << "Enter author(dafault: " + it->author + "): ";
+	std::cin >> strTmp;
+	if (strTmp != "skip") it->author = strTmp;
+	if (strTmp == "exit") throw "exit";
+
+	std::cout << "Enter title(dafault: " + it->title + "): ";
+	std::cin >> strTmp;
+	if (strTmp != "skip") it->title = strTmp;
+	if (strTmp == "exit") throw "exit";
+
+	intTmp = inputInt("Enter publication year(default: " + std::to_string(it->publicationYear) + "): ", 1900, 2017);
+	if (intTmp != 0) it->publicationYear = intTmp;
+
+	std::cout << "Enter publishing house(dafault: " + it->publishingHouse + "): ";
+	std::cin >> strTmp;
+	if (strTmp != "skip") it->publishingHouse = strTmp;
+	if (strTmp == "exit") throw "exit";
+
+	intTmp = inputInt("Enter price(default: " + std::to_string(it->price) + "): ");
+	if (intTmp != 0) it->price = intTmp;
+}
 
 void printMainMenu() {
 	std::cout << "-------------------------------------" << std::endl;
@@ -625,6 +791,10 @@ void printAction() {
 	std::cout << " 3)Delete" << std::endl;
 	std::cout << " 0)Exit" << std::endl;
 	std::cout << "-------------------------------------" << std::endl;
+}
+
+void printCaption() {
+	std::cout << "LC\tSub Surname\tIssue Date\tReturn Date\tAuthor\t\tTitle\tPYear\tPHouse\tPrice" << std::endl;
 }
 
 std::string output_file_name() {
@@ -685,6 +855,7 @@ int main() {
 			n = inputInt("Enter the command:", 0, 2);
 			switch (n) {
 			case 1:
+				printCaption();
 				cont.consoleOutput();
 				break;
 			case 2:
@@ -735,29 +906,36 @@ int main() {
 			case 4://Return date
 				std::cout << "Enter return date: ";
 				std::cin >> str;
+				Date date = Date();
+				date.TryStrToDate(str);
 
 				if (binarSearch)
-					found = cont.findByReturnDateBinary(str, it);
+					found = cont.findByReturnDateBinary(date, it);
 				else
-					found = cont.findByReturnDate(str, it);
+					found = cont.findByReturnDate(date, it);
 				break;
 			}
 			if (found) {
 				std::cout << "Record found \n";
 				printAction();
 				n = inputInt("Enter the command: ", 0, 3);
-				switch (n) {
-				case 1:
-					std::cout << *it;
-					break;
-				case 2:
-					cont.change(it);
-					break;
-				case 3:
-					cont.remove(it);
-					break;
-				case 0:
-					break;
+				while (n != 0 || n != 3) {
+					switch (n) {
+					case 1:
+						printCaption();
+						std::cout << *it;
+						break;
+					case 2:
+						cont.change(it);
+						break;
+					case 3:
+						cont.remove(it);
+						break;
+					case 0:
+						break;
+					}
+					printAction();
+					n = inputInt("Enter the command: ", 0, 3);
 				}
 			}
 			else
@@ -776,7 +954,6 @@ int main() {
 			case 2://Author
 				std::cout << "Enter author: ";
 				std::cin >> str;
-
 				cont.findSubSetByAuthor(str);
 				break;
 			case 3://Publishing house
@@ -786,12 +963,10 @@ int main() {
 				cont.findSubSetByPublishingHouse(str);
 				break;
 			case 4://Return date
-				std::cout << "Enter return date: ";
-				std::cin >> str;
-
-				cont.findSubSetByReturnDate(str);
+				cont.findSubSetByReturnDate(inputDate());
 				break;
 			}
+			std::cout << "Subset size: " << cont.subSize() << std::endl;
 			printMenuConsoleFile();
 			n = inputInt("Enter the command: ", 0, 2);
 			switch (n) {
