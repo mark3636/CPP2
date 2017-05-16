@@ -87,28 +87,8 @@ public:
 		return true;
 	}
 
-
-
 	static bool TryStrToDate(std::string str, Date &date) {
-		std::vector<std::string> tokens = split(str, '/');
-		if (tokens.size() != 3) return false;
-		int _day = 0, _month = 0, _year = 0;
-		try {
-			_month = std::stoi(tokens[1]);
-			if (_month < 1 || _month > 12) return false;
-			_year = std::stoi(tokens[2]);
-			if (_year < 1900 || _year > 2017) return false;
-			_day = std::stoi(tokens[0]);
-			if (_day < 1 || _day > Days(_month, _year)) return false;
-		}
-		catch (...) {
-			return false;
-		}
-		date.day = _day;
-		date.month = _month;
-		date.year = _year;
-
-		return true;
+		return date.TryStrToDate(str);
 	}
 
 	Date& operator=(const Date &date) {
@@ -404,31 +384,29 @@ public:
 	}
 };
 
-
-
-template<class P = Book>
-class MyContainer {
-private:
+template<class P>
+class Container {
+protected:
 	std::vector<P> vect;
 	std::vector<P> subv;
 
 public:
-	MyContainer(int size) {
+	Container(int size) {
 		vect = std::vector<P>(size);
 	}
 
-	MyContainer() {
+	Container() {
 		vect = std::vector<P>();
 	}
 
-	~MyContainer() {}
+	~Container() {}
 
 	bool add(P book) {
 		if (!find(book)) {
 			vect.push_back(book);
 			return true;
 		}
-		
+
 		return false;
 	}
 
@@ -442,6 +420,14 @@ public:
 		return it != vect.end();
 	}
 
+	int subSize() {
+		return subv.size();
+	}
+};
+
+template<class P = Book>
+class MyContainer : public Container<Book> {
+public:
 	void remove(std::vector<Book>::iterator it) {
 		vect.erase(it);
 	}
@@ -572,6 +558,7 @@ public:
 	}
 
 	void fileInput(std::string fn) {
+		bool isEmpty = true;
 		std::fstream fin(fn, std::ios::in);
 		if (fin.is_open()) {
 			std::istream_iterator<P> is(fin);
@@ -580,8 +567,10 @@ public:
 			while (!fin.fail() && !fin.eof()) {
 				add(book);
 				book = *is++;
+				isEmpty = false;
 			}
-			add(book);
+			if(!isEmpty)
+				add(book);
 			fin.close();
 		}
 		else
@@ -606,10 +595,6 @@ public:
 		}
 		else
 			std::cout << "Error while opening file!" << std::endl;
-	}
-
-	int subSize() {
-		return subv.size();
 	}
 };
 
@@ -646,6 +631,7 @@ Date inputDate(std::string message = "Input date in format dd/mm/yyyy : ") {
 
 	while (!ok) {
 		std::cin >> res;
+		if (res == "exit") throw "exit";
 		if (res == "skip") return date;
 		ok = date.TryStrToDate(res);
 		if (!ok) std::cout << "Wrong date. Repeat: ";
@@ -919,7 +905,7 @@ int main() {
 				std::cout << "Record found \n";
 				printAction();
 				n = inputInt("Enter the command: ", 0, 3);
-				while (n != 0 || n != 3) {
+				while (n != 0) {
 					switch (n) {
 					case 1:
 						printCaption();
@@ -930,10 +916,12 @@ int main() {
 						break;
 					case 3:
 						cont.remove(it);
+						std::cout << "Record was deleted" << std::endl;
 						break;
 					case 0:
 						break;
 					}
+					if (n == 3) break;
 					printAction();
 					n = inputInt("Enter the command: ", 0, 3);
 				}
