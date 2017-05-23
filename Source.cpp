@@ -12,132 +12,9 @@
 #include <stdlib.h>
 #include <functional>
 #include <math.h>
+#include "Date.h"
 
 
-std::vector<std::string> split(const std::string &text, char sep) {
-	std::vector<std::string> tokens;
-	std::size_t start = 0, end = 0;
-	while ((end = text.find(sep, start)) != std::string::npos) {
-		if (end != start) {
-			tokens.push_back(text.substr(start, end - start));
-		}
-		start = end + 1;
-	}
-	if (end != start) {
-		tokens.push_back(text.substr(start));
-	}
-	return tokens;
-}
-
-
-class Date {
-private:
-	int day;
-	int month;
-	int year;
-
-protected:
-	static int Days(int month, int year) {
-		return 28 + ((month + (int)std::floor(month / 8)) % 2) + 2 % month + (int)std::floor((1 + (1 - (year % 4 + 2) % (year % 4 + 1)) *
-			((year % 100 + 2) % (year % 100 + 1)) + (1 - (year % 400 + 2) % (year % 400 + 1))) / month) + (int)std::floor(1 / month) -
-			(int)std::floor(((1 - (year % 4 + 2) % (year % 4 + 1)) * ((year % 100 + 2) % (year % 100 + 1)) +
-			(1 - (year % 400 + 2) % (year % 400 + 1))) / month);
-	}
-
-public:
-	Date(int _day, int _month, int _year) {
-		day = _day;
-		month = _month;
-		year = _year;
-	}
-
-	Date() {
-		day = 1;
-		month = 1;
-		year = 1900;
-	}
-
-	Date(const Date &other) {
-		day = other.day;
-		month = other.month;
-		year = other.year;
-	}
-
-	~Date(){}
-
-	bool TryStrToDate(std::string date) {
-		std::vector<std::string> tokens = split(date, '/');
-		if (tokens.size() != 3) return false;
-		int _day = 0, _month = 0, _year = 0;
-		try {
-			_month = std::stoi(tokens[1]);
-			if (_month < 1 || _month > 12) return false;
-			_year = std::stoi(tokens[2]);
-			if (_year < 1900 || _year > 2017) return false;
-			_day = std::stoi(tokens[0]);
-			if (_day < 1 || _day > Days(_month, _year)) return false;
-		}
-		catch (...) {
-			return false;
-		}
-		day = _day;
-		month = _month;
-		year = _year;
-
-		return true;
-	}
-
-	static bool TryStrToDate(std::string str, Date &date) {
-		return date.TryStrToDate(str);
-	}
-
-	Date& operator=(const Date &date) {
-		year = date.year;
-		month = date.month;
-		day = date.day;
-		return *this;
-	}
-
-	bool operator==(const Date& other)
-	{
-		return day == other.day &&
-			month == other.month &&
-			year == other.year;
-	}
-
-	bool operator<(const Date& other) {
-		if (year < other.year) return true;
-		if (year == other.year) {
-			if (month < other.month) return true;
-			if (month == other.month) return day < other.day;
-		}
-		return false;
-	}
-
-	std::string ToString() const {
-		return std::to_string(day) + '/' + std::to_string(month) + '/' + std::to_string(year);
-	}
-
-	std::ostream& operator<<(std::ostream& cout) {
-		cout << ToString();
-		return cout;
-	}
-
-	std::istream& operator>>(std::istream& cin) {
-		std::string buf;
-		bool ok = false;
-		while (!ok)
-		{
-			cin >> buf;
-			ok = TryStrToDate(buf, *this);
-			if (!ok)
-				std::cout << "Wrong date!!!!";
-		}
-		return cin;
-	}
-};
-
-Date inputDate(std::string message);
 
 class  Book {
 
@@ -176,12 +53,10 @@ public:
 		price = 0;
 	}
 
-
-
 	~Book()	{}
 
 	bool operator==(const Book& other) const {
-		return	this->title == other.title;
+		return this->libraryCard == other.libraryCard;
 	}
 };
 
@@ -218,7 +93,6 @@ std::istream& operator>>(std::istream &is, Book &book) {
 
 Book inputBook();
 void inputBookChanged(std::vector<Book>::iterator &it);
-
 
 //Predicats and Comparators
 
@@ -388,9 +262,10 @@ template<class P>
 class Container {
 protected:
 	std::vector<P> vect;
-	std::vector<P> subv;
 
 public:
+	typedef std::_Vector_iterator<std::_Vector_val<std::_Simple_types<P>>> my_iterator;
+
 	Container(int size) {
 		vect = std::vector<P>(size);
 	}
@@ -401,136 +276,117 @@ public:
 
 	~Container() {}
 
-	bool add(P book) {
-		if (!find(book)) {
-			vect.push_back(book);
+	int vectSize() {
+		return vect.size();
+	}
+
+	bool add(P p) {
+		if (!find(p)) {
+			vect.push_back(p);
 			return true;
 		}
 
 		return false;
 	}
 
-	bool find(P book, std::random_access_iterator_tag &it) {
-		it = std::find(vect.begin(), vect.end(), book);
+	void remove(my_iterator &it) {
+		vect.erase(it);
+	}
+
+	bool find(P p) {
+		return std::find(vect.begin(), vect.end(), p) != vect.end();
+	}
+
+	template<class Pred>
+	bool find(Pred &pred, my_iterator &it) {
+		it = std::find_if(vect.begin(), vect.end(), pred);
 		return it != vect.end();
 	}
 
-	bool find(P book) {
-		std::vector<P>::iterator it = std::find(vect.begin(), vect.end(), book);
-		return it != vect.end();
+	template<class Comp>
+	bool find(Comp &comp, P p, my_iterator &it) {
+		std::sort(vect.begin(), vect.end(), comp);
+		it = std::lower_bound(vect.begin(), vect.end(), p, comp);
+		return !comp(p, *it);
 	}
 
-	int subSize() {
-		return subv.size();
+	template<class Acc>
+	std::vector<P> findSubset(Acc acc) {
+		std::for_each(vect.begin(), vect.end(), acc);
+		return acc.getSet();
 	}
 };
 
 template<class P = Book>
 class MyContainer : public Container<Book> {
 public:
-	void remove(std::vector<Book>::iterator it) {
-		vect.erase(it);
-	}
-
 	void change(std::vector<Book>::iterator &it) {
-		try { inputBookChanged(it); }
-		catch (const char* str) { return; }
-	}
-
-	bool findByLibraryCard(int card, std::vector<Book>::iterator &it) {
-		LibraryCardPred pred = LibraryCardPred(card);
-		it = std::find_if(vect.begin(), vect.end(), pred);
-		return it != vect.end();
-	}
-
-	bool findByAuthor(std::string author, std::vector<Book>::iterator &it) {
-		AuthorPred pred = AuthorPred(author);
-		it = std::find_if(vect.begin(), vect.end(), pred);
-		return it != vect.end();
-	}
-
-	bool findByPublishingHouse(std::string house, std::vector<Book>::iterator &it) {
-		PublishingHousePred pred = PublishingHousePred(house);
-		it = std::find_if(vect.begin(), vect.end(), pred);
-		return it != vect.end();
-	}
-
-	bool findByReturnDate(Date date, std::vector<Book>::iterator &it) {
-		ReturnDatePred pred = ReturnDatePred(date);
-		it = std::find_if(vect.begin(), vect.end(), pred);
-		return it != vect.end();
-	}
-
-	bool findByLibraryCardBinary(int card, std::vector<Book>::iterator &it) {
-		LibraryCardPred pred = LibraryCardPred(card);
-		LibraryCardComp comp = LibraryCardComp();
-		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(card, "", Date(), Date(), "", "", 1990, "", 0);
-		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
-			it = std::find_if(vect.begin(), vect.end(), pred);
-			return true;
+		try { 
+			inputBookChanged(it);
 		}
-		return false;
-	}
-
-	bool findByAuthorBinary(std::string author, std::vector<Book>::iterator &it) {
-		AuthorPred pred = AuthorPred(author);
-		AuthorComp comp = AuthorComp();
-		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(0, "", Date(), Date(), author, "", 1990, "", 0);
-		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
-			it = std::find_if(vect.begin(), vect.end(), pred);
-			return true;
+		catch (const char*) { 
+			return; 
 		}
-		return false;
 	}
 
-	bool findByPublishingHouseBinary(std::string house, std::vector<Book>::iterator &it) {
-		PublishingHousePred pred = PublishingHousePred(house);
-		PublishingHouseComp comp = PublishingHouseComp();
-		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(0, "",Date(), Date(), "", "", 1990, house, 0);
-		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
-			it = std::find_if(vect.begin(), vect.end(), pred);
-			return true;
-		}
-		return false;
+	bool findByLibraryCard(int card, my_iterator &it) {
+		return find(LibraryCardPred(card), it);
 	}
 
-	bool findByReturnDateBinary(Date date, std::vector<Book>::iterator &it) {
-		ReturnDatePred pred = ReturnDatePred(date);
-		ReturnDateComp comp = ReturnDateComp();
-		std::sort(vect.begin(), vect.end(), comp);
-		P b = Book(0, "", Date(), date, "", "", 1990, "", 0);
-		if (std::binary_search(vect.begin(), vect.end(), b, comp)) {
-			it = std::find_if(vect.begin(), vect.end(), pred);
-			return true;
-		}
-		return false;
+	bool findByAuthor(std::string author, my_iterator &it) {
+		return find(AuthorPred(author), it);
 	}
 
-	void findSubSetByLibraryCard(int card) {
-		LibraryCardAcc acc = LibraryCardAcc(card);
-		std::for_each(vect.begin(), vect.end(), acc);
-		subv = acc.getSet();
+	bool findByPublishingHouse(std::string house, my_iterator &it) {
+		return find(PublishingHousePred(house), it);
 	}
 
-	void findSubSetByAuthor(std::string author) {
-		AuthorAcc acc = AuthorAcc(author);
-		std::for_each(vect.begin(), vect.end(), acc);
-		subv = acc.getSet();
+	bool findByReturnDate(Date date, my_iterator &it) {
+		return find(ReturnDatePred(date), it);
 	}
 
-	void findSubSetByPublishingHouse(std::string house) {
-		PublishingHouseAcc acc = PublishingHouseAcc(house);
-		std::for_each(vect.begin(), vect.end(), acc);
-		subv = acc.getSet();
+	bool findByLibraryCardBinary(int card, my_iterator &it) {
+		Book book = Book(card, "", Date(), Date(), "", "", 1990, "", 0);
+		return find(LibraryCardComp(), book, it);
 	}
 
-	void findSubSetByReturnDate(Date date) {
-		ReturnDateAcc acc = ReturnDateAcc(date);
-		std::for_each(vect.begin(), vect.end(), acc);
-		subv = acc.getSet();
+	bool findByAuthorBinary(std::string author, my_iterator &it) {
+		Book book = Book(0, "", Date(), Date(), author, "", 1990, "", 0);
+		return find(AuthorComp(), book, it);
+	}
+
+	bool findByPublishingHouseBinary(std::string house, my_iterator &it) {
+		Book book = Book(0, "", Date(), Date(), "", "", 1990, house, 0);
+		return find(PublishingHouseComp(), book, it);
+	}
+
+	bool findByReturnDateBinary(Date date, my_iterator &it) {
+		Book book = Book(0, "", Date(), date, "", "", 1990, "", 0);
+		return find(ReturnDateComp(), book, it);
+	}
+
+	MyContainer<Book> findSubSetByLibraryCard(int card) {
+		MyContainer<Book> result;
+		result.vect = findSubset(LibraryCardAcc(card));
+		return result;
+	}
+
+	MyContainer<Book> findSubSetByAuthor(std::string author) {
+		MyContainer<Book> result;
+		findSubset(AuthorAcc(author));
+		return result;
+	}
+
+	MyContainer<Book> findSubSetByPublishingHouse(std::string house) {
+		MyContainer<Book> result;
+		findSubset(PublishingHouseAcc(house));
+		return result;
+	}
+
+	MyContainer<Book> findSubSetByReturnDate(Date date) {
+		MyContainer<Book> result;
+		findSubset(ReturnDateAcc(date));
+		return result;
 	}
 
 	void consoleInput() {
@@ -540,7 +396,7 @@ public:
 			try {
 				book = inputBook();
 			}
-			catch(const char* str) {
+			catch(const char*) {
 				return;
 			}
 
@@ -549,28 +405,28 @@ public:
 	}
 
 	void consoleOutput() {
-		copy(vect.begin(), vect.end(), std::ostream_iterator<P>(std::cout, "\n"));
-	}
-
-	void consoleOutputSub() {
-		printCaption();
-		copy(subv.begin(), subv.end(), std::ostream_iterator<P>(std::cout, "\n"));
+		if (vect.size() == 0) {
+			std::cout << "Container is empty!" << std::endl;
+		}
+		else {
+			std::cout << "LC\tSub Surname\tIssue Date\tReturn Date\tAuthor\t\tTitle\tPYear\tPHouse\tPrice" << std::endl;
+			copy(vect.begin(), vect.end(), std::ostream_iterator<P>(std::cout, "\n"));
+		}
 	}
 
 	void fileInput(std::string fn) {
-		bool isEmpty = true;
 		std::fstream fin(fn, std::ios::in);
 		if (fin.is_open()) {
 			std::istream_iterator<P> is(fin);
 			vect.clear();
+			if (fin.eof()) return;
 			P book = *is++;
 			while (!fin.fail() && !fin.eof()) {
 				add(book);
 				book = *is++;
-				isEmpty = false;
 			}
-			if(!isEmpty)
-				add(book);
+
+			add(book);
 			fin.close();
 		}
 		else
@@ -581,16 +437,6 @@ public:
 		std::fstream fout(fn, std::ios::out);
 		if (fout.is_open()) {
 			copy(vect.begin(), vect.end(), std::ostream_iterator<P>(fout, "\n"));
-			fout.close();
-		}
-		else
-			std::cout << "Error while opening file!" << std::endl;
-	}
-
-	void fileOutputSub(std::string fn) {
-		std::fstream fout(fn, std::ios::out);
-		if (fout.is_open()) {
-			copy(subv.begin(), subv.end(), std::ostream_iterator<P>(fout, "\n"));
 			fout.close();
 		}
 		else
@@ -607,7 +453,7 @@ int inputInt(std::string message, int min = 0, int max = 10000) {
 		std::cout << message;
 		try {
 			std::cin >> str;
-			if (str == "skip") return 0;
+			if (str == "skip") return -1;
 			if (str == "exit") throw "exit";
 			res = std::stoi(str);
 			while (res < min || res > max) {
@@ -616,7 +462,7 @@ int inputInt(std::string message, int min = 0, int max = 10000) {
 			}
 			return res;
 		}
-		catch (std::exception &e) {
+		catch (std::exception&) {
 			std::cout << "Wrong number!" << std::endl;
 		}
 	}
@@ -692,7 +538,7 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	Date defDt = Date();
 
 	intTmp = inputInt("Enter library card(default: " + std::to_string(it->libraryCard) + "): ");
-	if (intTmp != 0) it->libraryCard = intTmp;
+	if (intTmp != -1) it->libraryCard = intTmp;
 
 	std::cout << "Enter subscriber surname(dafault: " + it->subSurname + "): ";
 	std::cin >> strTmp;
@@ -720,7 +566,7 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	if (strTmp == "exit") throw "exit";
 
 	intTmp = inputInt("Enter publication year(default: " + std::to_string(it->publicationYear) + "): ", 1900, 2017);
-	if (intTmp != 0) it->publicationYear = intTmp;
+	if (intTmp != -1) it->publicationYear = intTmp;
 
 	std::cout << "Enter publishing house(dafault: " + it->publishingHouse + "): ";
 	std::cin >> strTmp;
@@ -728,7 +574,7 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	if (strTmp == "exit") throw "exit";
 
 	intTmp = inputInt("Enter price(default: " + std::to_string(it->price) + "): ");
-	if (intTmp != 0) it->price = intTmp;
+	if (intTmp != -1) it->price = intTmp;
 }
 
 void printMainMenu() {
@@ -810,6 +656,7 @@ std::string input_file_name() {
 
 int main() {
 	MyContainer<> cont = MyContainer<>();
+	MyContainer<> subcont = MyContainer<>();
 	std::string str;
 	int n;
 	bool binarSearch;
@@ -841,7 +688,6 @@ int main() {
 			n = inputInt("Enter the command:", 0, 2);
 			switch (n) {
 			case 1:
-				printCaption();
 				cont.consoleOutput();
 				break;
 			case 2:
@@ -930,40 +776,50 @@ int main() {
 				std::cout << "Record not found \n";
 			break;
 		case 4://ADD
-			cont.add(inputBook());
+			try {
+				cont.add(inputBook());
+			}
+			catch (const char*) {
+				break;
+			}
 			break;
 		case 5://SUBSET
 			printMenuFindParam();
 			n = inputInt("Enter the command: ", 1, 4);
 			switch (n) {
 			case 1://Library card
-				cont.findSubSetByLibraryCard(inputInt("Enter library card: "));
+				subcont = cont.findSubSetByLibraryCard(inputInt("Enter library card: "));
 				break;
 			case 2://Author
 				std::cout << "Enter author: ";
 				std::cin >> str;
-				cont.findSubSetByAuthor(str);
+				subcont = cont.findSubSetByAuthor(str);
 				break;
 			case 3://Publishing house
 				std::cout << "Enter publishing house: ";
 				std::cin >> str;
-
-				cont.findSubSetByPublishingHouse(str);
+				subcont = cont.findSubSetByPublishingHouse(str);
 				break;
 			case 4://Return date
-				cont.findSubSetByReturnDate(inputDate());
+				subcont = cont.findSubSetByReturnDate(inputDate("Enter return date: "));
 				break;
 			}
-			std::cout << "Subset size: " << cont.subSize() << std::endl;
+			if (subcont.vectSize() == 0) {
+				std::cout << "Subset is emty!" << std::endl;
+				break;
+			}
+			else {
+				std::cout << std::endl << subcont.vectSize() << " record(s) found!" << std::endl;
+			}
 			printMenuConsoleFile();
 			n = inputInt("Enter the command: ", 0, 2);
 			switch (n) {
 			case 1:
-				cont.consoleOutputSub();
+				subcont.consoleOutput();
 				break;
 			case 2:
 				FName = output_file_name();
-				cont.fileOutputSub(FName);
+				subcont.fileOutput(FName);
 				break;
 			case 3:
 				break;
