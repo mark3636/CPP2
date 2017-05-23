@@ -417,16 +417,18 @@ public:
 	void fileInput(std::string fn) {
 		std::fstream fin(fn, std::ios::in);
 		if (fin.is_open()) {
-			std::istream_iterator<P> is(fin);
 			vect.clear();
 			if (fin.eof()) return;
-			P book = *is++;
+			std::istream_iterator<P> is(fin);
+			
+			P book;
 			while (!fin.fail() && !fin.eof()) {
-				add(book);
+
 				book = *is++;
+				add(book);
 			}
 
-			add(book);
+			add(*is);
 			fin.close();
 		}
 		else
