@@ -260,10 +260,11 @@ public:
 
 template<class P>
 class Container {
-public:
+protected:
 	std::vector<P> vect;
-
+public:
 	typedef std::_Vector_iterator<std::_Vector_val<std::_Simple_types<P>>> my_iterator;
+	typedef std::_Vector_const_iterator<std::_Vector_val<std::_Simple_types<P>>> my_const_iterator;
 
 	Container(int size) {
 		vect = std::vector<P>(size);
@@ -273,9 +274,21 @@ public:
 		vect = std::vector<P>();
 	}
 
+	void clear() {
+		vect.clear();
+	}
+
 	~Container() {}
 
-	int vectSize() {
+	my_const_iterator begin() {
+		return vect.cbegin();
+	}
+
+	my_const_iterator end() {
+		return vect.cend();
+	}
+
+	int size() {
 		return vect.size();
 	}
 
@@ -319,6 +332,12 @@ public:
 
 class MyContainer : public Container<Book> {
 public:
+	MyContainer() {}
+
+	MyContainer(std::vector<Book> _vect) {
+		vect = _vect;
+	}
+
 	bool findByLibraryCard(int card, my_iterator &it) {
 		return find(LibraryCardPred(card), it);
 	}
@@ -356,27 +375,19 @@ public:
 	}
 
 	MyContainer findSubSetByLibraryCard(int card) {
-		MyContainer result;
-		result.vect = findSubset(LibraryCardAcc(card));
-		return result;
+		return MyContainer(findSubset(LibraryCardAcc(card)));
 	}
 
 	MyContainer findSubSetByAuthor(std::string author) {
-		MyContainer result;
-		findSubset(AuthorAcc(author));
-		return result;
+		return MyContainer(findSubset(AuthorAcc(author)));
 	}
 
 	MyContainer findSubSetByPublishingHouse(std::string house) {
-		MyContainer result;
-		findSubset(PublishingHouseAcc(house));
-		return result;
+		return MyContainer(findSubset(PublishingHouseAcc(house)));
 	}
 
 	MyContainer findSubSetByReturnDate(Date date) {
-		MyContainer result;
-		findSubset(ReturnDateAcc(date));
-		return result;
+		return MyContainer(findSubset(ReturnDateAcc(date)));
 	}
 
 	void fileInput(std::fstream fin) {
@@ -403,6 +414,10 @@ public:
 		}
 		else
 			std::cout << "Error while opening file!" << std::endl;
+	}
+
+	void output(std::ostream_iterator<Book> os) {
+		copy(vect.begin(), vect.end(), os);
 	}
 };
 
@@ -540,7 +555,7 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 }
 
 void consoleInput(MyContainer &cont) {
-	cont.vect.clear();
+	cont.clear();
 	Book book;
 	while (true) {
 		try {
@@ -554,13 +569,23 @@ void consoleInput(MyContainer &cont) {
 	}
 }
 
+//void consoleOutput(MyContainer cont) {
+//	if (cont.size() == 0) {
+//		std::cout << "Container is empty!" << std::endl;
+//	}
+//	else {
+//		std::cout << "LC\tSub Surname\tIssue Date\tReturn Date\tAuthor\t\tTitle\tPYear\tPHouse\tPrice" << std::endl;
+//		copy(cont.begin(), cont.end(), std::ostream_iterator<Book>(std::cout, "\n"));
+//	}
+//}
+
 void consoleOutput(MyContainer cont) {
-	if (cont.vect.size() == 0) {
+	if (cont.size() == 0) {
 		std::cout << "Container is empty!" << std::endl;
 	}
 	else {
 		std::cout << "LC\tSub Surname\tIssue Date\tReturn Date\tAuthor\t\tTitle\tPYear\tPHouse\tPrice" << std::endl;
-		copy(cont.vect.begin(), cont.vect.end(), std::ostream_iterator<Book>(std::cout, "\n"));
+		cont.output(std::ostream_iterator<Book>(std::cout, "\n"));
 	}
 }
 
@@ -799,12 +824,12 @@ int main() {
 				subcont = cont.findSubSetByReturnDate(inputDate("Enter return date: "));
 				break;
 			}
-			if (subcont.vectSize() == 0) {
+			if (subcont.size() == 0) {
 				std::cout << "Subset is emty!" << std::endl;
 				break;
 			}
 			else {
-				std::cout << std::endl << subcont.vectSize() << " record(s) found!" << std::endl;
+				std::cout << std::endl << subcont.size() << " record(s) found!" << std::endl;
 			}
 			printMenuConsoleFile();
 			n = inputInt("Enter the command: ", 0, 2);
