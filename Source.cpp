@@ -260,10 +260,9 @@ public:
 
 template<class P>
 class Container {
-protected:
+public:
 	std::vector<P> vect;
 
-public:
 	typedef std::_Vector_iterator<std::_Vector_val<std::_Simple_types<P>>> my_iterator;
 
 	Container(int size) {
@@ -307,6 +306,7 @@ public:
 	bool find(Comp &comp, P p, my_iterator &it) {
 		std::sort(vect.begin(), vect.end(), comp);
 		it = std::lower_bound(vect.begin(), vect.end(), p, comp);
+		if (it == vect.end()) return false;
 		return !comp(p, *it);
 	}
 
@@ -317,18 +317,8 @@ public:
 	}
 };
 
-template<class P = Book>
 class MyContainer : public Container<Book> {
 public:
-	void change(std::vector<Book>::iterator &it) {
-		try { 
-			inputBookChanged(it);
-		}
-		catch (const char*) { 
-			return; 
-		}
-	}
-
 	bool findByLibraryCard(int card, my_iterator &it) {
 		return find(LibraryCardPred(card), it);
 	}
@@ -365,80 +355,50 @@ public:
 		return find(ReturnDateComp(), book, it);
 	}
 
-	MyContainer<Book> findSubSetByLibraryCard(int card) {
-		MyContainer<Book> result;
+	MyContainer findSubSetByLibraryCard(int card) {
+		MyContainer result;
 		result.vect = findSubset(LibraryCardAcc(card));
 		return result;
 	}
 
-	MyContainer<Book> findSubSetByAuthor(std::string author) {
-		MyContainer<Book> result;
+	MyContainer findSubSetByAuthor(std::string author) {
+		MyContainer result;
 		findSubset(AuthorAcc(author));
 		return result;
 	}
 
-	MyContainer<Book> findSubSetByPublishingHouse(std::string house) {
-		MyContainer<Book> result;
+	MyContainer findSubSetByPublishingHouse(std::string house) {
+		MyContainer result;
 		findSubset(PublishingHouseAcc(house));
 		return result;
 	}
 
-	MyContainer<Book> findSubSetByReturnDate(Date date) {
-		MyContainer<Book> result;
+	MyContainer findSubSetByReturnDate(Date date) {
+		MyContainer result;
 		findSubset(ReturnDateAcc(date));
 		return result;
 	}
 
-	void consoleInput() {
-		vect.clear();
-		P book;
-		while (true) {
-			try {
-				book = inputBook();
-			}
-			catch(const char*) {
-				return;
-			}
-
-			add(book);
-		}
-	}
-
-	void consoleOutput() {
-		if (vect.size() == 0) {
-			std::cout << "Container is empty!" << std::endl;
-		}
-		else {
-			std::cout << "LC\tSub Surname\tIssue Date\tReturn Date\tAuthor\t\tTitle\tPYear\tPHouse\tPrice" << std::endl;
-			copy(vect.begin(), vect.end(), std::ostream_iterator<P>(std::cout, "\n"));
-		}
-	}
-
-	void fileInput(std::string fn) {
-		std::fstream fin(fn, std::ios::in);
+	void fileInput(std::fstream fin) {
 		if (fin.is_open()) {
+			std::istream_iterator<Book> is(fin);
 			vect.clear();
 			if (fin.eof()) return;
-			std::istream_iterator<P> is(fin);
-			
-			P book;
+			Book book = *is++;
 			while (!fin.fail() && !fin.eof()) {
-
-				book = *is++;
 				add(book);
+				book = *is++;
 			}
-
-			add(*is);
+			add(book);
 			fin.close();
 		}
 		else
 			std::cout << "File doesn't exist!" << std::endl;
 	}
 
-	void fileOutput(std::string fn) {
-		std::fstream fout(fn, std::ios::out);
+	void fileOutput(std::fstream fout) {
 		if (fout.is_open()) {
-			copy(vect.begin(), vect.end(), std::ostream_iterator<P>(fout, "\n"));
+			copy(vect.begin(), vect.end(), std::ostream_iterator<Book>(fout, "\n"));
 			fout.close();
 		}
 		else
@@ -579,6 +539,31 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	if (intTmp != -1) it->price = intTmp;
 }
 
+void consoleInput(MyContainer &cont) {
+	cont.vect.clear();
+	Book book;
+	while (true) {
+		try {
+			book = inputBook();
+		}
+		catch (const char*) {
+			return;
+		}
+
+		cont.add(book);
+	}
+}
+
+void consoleOutput(MyContainer cont) {
+	if (cont.vect.size() == 0) {
+		std::cout << "Container is empty!" << std::endl;
+	}
+	else {
+		std::cout << "LC\tSub Surname\tIssue Date\tReturn Date\tAuthor\t\tTitle\tPYear\tPHouse\tPrice" << std::endl;
+		copy(cont.vect.begin(), cont.vect.end(), std::ostream_iterator<Book>(std::cout, "\n"));
+	}
+}
+
 void printMainMenu() {
 	std::cout << "-------------------------------------" << std::endl;
 	std::cout << " 1)Input" << std::endl;
@@ -657,8 +642,8 @@ std::string input_file_name() {
 }
 
 int main() {
-	MyContainer<> cont = MyContainer<>();
-	MyContainer<> subcont = MyContainer<>();
+	MyContainer cont = MyContainer();
+	MyContainer subcont = MyContainer();
 	std::string str;
 	int n;
 	bool binarSearch;
@@ -675,11 +660,11 @@ int main() {
 			n = inputInt("Enter the command: ", 0, 2);
 			switch (n) {
 			case 1:
-				cont.consoleInput();
+				consoleInput(cont);
 				break;
 			case 2:
 				FName = input_file_name();
-				cont.fileInput(FName);
+				cont.fileInput(std::fstream(FName, std::ios::in));
 				break;
 			case 0:
 				break;
@@ -690,10 +675,11 @@ int main() {
 			n = inputInt("Enter the command:", 0, 2);
 			switch (n) {
 			case 1:
-				cont.consoleOutput();
+				consoleOutput(cont);
 				break;
 			case 2:
-				cont.fileOutput(output_file_name());
+				FName = output_file_name();
+				cont.fileOutput(std::fstream(FName, std::ios::out));
 				break;
 			case 0:
 				break;
@@ -701,7 +687,7 @@ int main() {
 			break;
 		case 3://FIND
 			printMenuSearch();
-			n = inputInt("Enter the command: ", 1, 2);
+			n = inputInt("Enter the command: ", 0, 2);
 			switch (n) {
 			case 1://SIMPLE
 				binarSearch = false;
@@ -710,72 +696,79 @@ int main() {
 				binarSearch = true;
 				break;
 			}
-			printMenuFindParam();
-			n = inputInt("Enter the command: ", 1, 4);
-			switch (n) {
-			case 1://Library card
-				if (binarSearch)
-					found = cont.findByLibraryCardBinary(inputInt("Enter library card: "), it);
-				else
-					found = cont.findByLibraryCard(inputInt("Enter library card: "), it);
-				break;
-			case 2://Author
-				std::cout << "Enter author: ";
-				std::cin >> str;
+			if (n != 0) {
+				printMenuFindParam();
+				n = inputInt("Enter the command: ", 1, 4);
+				switch (n) {
+				case 1://Library card
+					if (binarSearch)
+						found = cont.findByLibraryCardBinary(inputInt("Enter library card: "), it);
+					else
+						found = cont.findByLibraryCard(inputInt("Enter library card: "), it);
+					break;
+				case 2://Author
+					std::cout << "Enter author: ";
+					std::cin >> str;
 
-				if (binarSearch)
-					found = cont.findByAuthorBinary(str, it);
-				else
-					found = cont.findByAuthor(str, it);
-				break;
-			case 3://Publishing house
-				std::cout << "Enter publishing house: ";
-				std::cin >> str;
+					if (binarSearch)
+						found = cont.findByAuthorBinary(str, it);
+					else
+						found = cont.findByAuthor(str, it);
+					break;
+				case 3://Publishing house
+					std::cout << "Enter publishing house: ";
+					std::cin >> str;
 
-				if (binarSearch)
-					found = cont.findByPublishingHouseBinary(str, it);
-				else
-					found = cont.findByPublishingHouse(str, it);
-				break;
-			case 4://Return date
-				std::cout << "Enter return date: ";
-				std::cin >> str;
-				Date date = Date();
-				date.TryStrToDate(str);
+					if (binarSearch)
+						found = cont.findByPublishingHouseBinary(str, it);
+					else
+						found = cont.findByPublishingHouse(str, it);
+					break;
+				case 4://Return date
+					std::cout << "Enter return date: ";
+					std::cin >> str;
+					Date date = Date();
+					date.TryStrToDate(str);
 
-				if (binarSearch)
-					found = cont.findByReturnDateBinary(date, it);
-				else
-					found = cont.findByReturnDate(date, it);
-				break;
-			}
-			if (found) {
-				std::cout << "Record found \n";
-				printAction();
-				n = inputInt("Enter the command: ", 0, 3);
-				while (n != 0) {
-					switch (n) {
-					case 1:
-						printCaption();
-						std::cout << *it;
-						break;
-					case 2:
-						cont.change(it);
-						break;
-					case 3:
-						cont.remove(it);
-						std::cout << "Record was deleted" << std::endl;
-						break;
-					case 0:
-						break;
-					}
-					if (n == 3) break;
+					if (binarSearch)
+						found = cont.findByReturnDateBinary(date, it);
+					else
+						found = cont.findByReturnDate(date, it);
+					break;
+				}
+				if (found) {
+					std::cout << "Record found \n";
 					printAction();
 					n = inputInt("Enter the command: ", 0, 3);
+					while (n != 0) {
+						switch (n) {
+						case 1:
+							printCaption();
+							std::cout << *it;
+							break;
+						case 2:
+							try {
+								inputBookChanged(it);
+							}
+							catch (const char*) {
+								break;
+							}
+							break;
+						case 3:
+							cont.remove(it);
+							std::cout << "Record was deleted" << std::endl;
+							break;
+						case 0:
+							break;
+						}
+						if (n == 3) break;
+						printAction();
+						n = inputInt("Enter the command: ", 0, 3);
+					}
 				}
+				else
+					std::cout << "Record not found \n";
 			}
-			else
-				std::cout << "Record not found \n";
 			break;
 		case 4://ADD
 			try {
@@ -817,11 +810,11 @@ int main() {
 			n = inputInt("Enter the command: ", 0, 2);
 			switch (n) {
 			case 1:
-				subcont.consoleOutput();
+				consoleOutput(subcont);
 				break;
 			case 2:
 				FName = output_file_name();
-				subcont.fileOutput(FName);
+				subcont.fileOutput(std::fstream(FName, std::ios::out));
 				break;
 			case 3:
 				break;
