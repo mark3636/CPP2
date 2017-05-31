@@ -476,30 +476,37 @@ bool checkInt(std::string str) {
 	return (j == str.length()) && (result);
 }
 
-int inputInt(std::string message, int min = 0, int max = 10000) {
+int inputInt(std::string message, int min = 0, int max = 10000, bool isAdd = true) {
 	std::string str;
 	int res;
+	bool ok = false;
 
-	while (true) {
+	while (!ok) {
 		std::cout << message;
 		try {
 			std::cin >> str;
-			if (str == "skip") return -1;
 			if (str == "exit") throw "exit";
-			res = std::stoi(str);
-			while (res < min || res > max || !checkInt(str)) {
-				std::cout << "Wrong value. Repeat: ";
-				std::cin >> res;
+			if (!isAdd && str == "skip") return -1;
+
+			if (checkInt(str)) {
+				res = std::stoi(str);
+				if (res < min || res > max)
+					std::cout << "Wrong value. Repeat: ";
+				else
+					ok = true;
 			}
-			return res;
+			else
+				std::cout << "Wrong value! ";
 		}
 		catch (std::exception&) {
 			std::cout << "Wrong number!" << std::endl;
 		}
 	}
+
+	return res;
 }
 
-Date inputDate(std::string message = "Input date in format dd/mm/yyyy : ") {
+Date inputDate(std::string message = "Input date in format dd/mm/yyyy : ", bool isAdd = true) {
 	std::string res;
 	Date date = Date();
 
@@ -509,7 +516,7 @@ Date inputDate(std::string message = "Input date in format dd/mm/yyyy : ") {
 	while (!ok) {
 		std::cin >> res;
 		if (res == "exit") throw "exit";
-		if (res == "skip") return date;
+		if (!isAdd && res == "skip") return date;
 		ok = date.TryStrToDate(res);
 		if (!ok) std::cout << "Wrong date. Repeat: ";
 	}
@@ -535,9 +542,7 @@ bool checkPrice(std::string price) {
 
 	switch (price[i]) {
 		case '-': {
-			sign = -1;
-			++i;
-			break;
+			return false;
 		}
 
 		case '+': {
@@ -568,7 +573,7 @@ bool checkPrice(std::string price) {
 	return (j == price.length()) && (result);
 }
 
-dec::decimal<2> inputPrice(std::string message = "Input price : ") {
+dec::decimal<2> inputPrice(std::string message = "Input price : ", bool isAdd = true) {
 	std::string tmp;
 	dec::decimal<2> res;
 
@@ -578,7 +583,7 @@ dec::decimal<2> inputPrice(std::string message = "Input price : ") {
 	while (!ok) {
 		std::cin >> tmp;
 		if (tmp == "exit") throw "exit";
-		if (tmp == "skip") return dec::decimal_cast<2>(-1);
+		if (!isAdd && tmp == "skip") return dec::decimal_cast<2>(-1);
 		ok = checkPrice(tmp);
 		if (!ok) std::cout << "Wrong price. Repeat: ";
 	}
@@ -638,7 +643,7 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	Date dateTmp;
 	Date defDt = Date();
 
-	intTmp = inputInt("Enter library card(default: " + std::to_string(it->libraryCard) + "): ");
+	intTmp = inputInt("Enter library card(default: " + std::to_string(it->libraryCard) + "): ", 0, 1000, false);
 	if (intTmp != -1) it->libraryCard = intTmp;
 
 	std::cout << "Enter subscriber surname(dafault: " + it->subSurname + "): ";
@@ -647,12 +652,12 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	if (strTmp != "skip") it->subSurname = strTmp;
 
 	strTmp = it->issueDate.ToString();
-	dateTmp = inputDate("Enter issue date(dd/mm/yyyy)(default: " + strTmp + "):");
+	dateTmp = inputDate("Enter issue date(dd/mm/yyyy)(default: " + strTmp + "):", false);
 	if (dateTmp == defDt);
 	else it->issueDate = dateTmp;
 
 	strTmp = it->returnDate.ToString();
-	dateTmp = inputDate("Enter return date(dd/mm/yyyy)(default: " + strTmp + "):");
+	dateTmp = inputDate("Enter return date(dd/mm/yyyy)(default: " + strTmp + "):", false);
 	if (dateTmp == defDt);
 	else it->returnDate= dateTmp;
 
@@ -667,7 +672,7 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	if (strTmp != "skip") it->title = strTmp;
 	
 
-	intTmp = inputInt("Enter publication year(default: " + std::to_string(it->publicationYear) + "): ", 1900, 2017);
+	intTmp = inputInt("Enter publication year(default: " + std::to_string(it->publicationYear) + "): ", 1900, 2017, false);
 	if (intTmp != -1) it->publicationYear = intTmp;
 
 	std::cout << "Enter publishing house(dafault: " + it->publishingHouse + "): ";
@@ -676,9 +681,9 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	if (strTmp != "skip") it->publishingHouse = strTmp;
 	
 
-	decTmp = inputPrice("Enter price(default: " + dec::toString(it->price) + "): ");
+	decTmp = inputPrice("Enter price(default: " + dec::toString(it->price) + "): ", false);
 	if (decTmp != dec::decimal_cast<2>(-1))
-		it->price = intTmp;
+		it->price = decTmp;
 }
 
 void consoleInput(MyContainer &cont) {
