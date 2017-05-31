@@ -77,8 +77,7 @@ Date& Date::operator=(const Date &date) {
 	return *this;
 }
 
-bool Date::operator==(const Date& other)
-{
+bool Date::operator==(const Date& other) const {
 	return day == other.day &&
 		month == other.month &&
 		year == other.year;

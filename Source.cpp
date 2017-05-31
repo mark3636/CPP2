@@ -13,7 +13,7 @@
 #include <functional>
 #include <math.h>
 #include "Date.h"
-
+#include "Decimal.h"
 
 
 class  Book {
@@ -27,9 +27,9 @@ public:
 	std::string title;
 	int publicationYear;
 	std::string publishingHouse;
-	unsigned short price;
+	dec::decimal<2> price;
 
-	Book(int lC, std::string sS, Date &iD, Date &rD, std::string atr, std::string ttl, int pY, std::string pH, int prc) {
+	Book(int lC, std::string sS, Date &iD, Date &rD, std::string atr, std::string ttl, int pY, std::string pH, dec::decimal<2> prc) {
 		libraryCard = lC;
 		subSurname = sS;
 		issueDate = iD;
@@ -56,7 +56,15 @@ public:
 	~Book()	{}
 
 	bool operator==(const Book& other) const {
-		return this->libraryCard == other.libraryCard;
+		return  this->libraryCard == other.libraryCard &&
+				this->subSurname == other.subSurname &&
+				this->issueDate == other.issueDate &&
+				this->returnDate == other.returnDate &&
+				this->author == other.author &&
+				this->title == other.title &&
+				this->publicationYear == other.publicationYear &&
+				this->publishingHouse == other.publishingHouse &&
+				this->price == other.price;
 	}
 };
 
@@ -69,7 +77,7 @@ std::ostream& operator<<(std::ostream &os, const Book &book) {
 		book.title + "\t" +
 		std::to_string(book.publicationYear) + "\t" +
 		book.publishingHouse + "\t" +
-		std::to_string(book.price) + "\n";
+		dec::toString(book.price) + "\n";
 		
 	return os;
 }
@@ -86,7 +94,7 @@ std::istream& operator>>(std::istream &is, Book &book) {
 	is >> book.title;
 	is >> book.publicationYear;
 	is >> book.publishingHouse;
-	is >> book.price;
+	dec::fromStream(is, book.price);
 
 	return is;
 }
@@ -311,16 +319,21 @@ public:
 
 	template<class Pred>
 	bool find(Pred &pred, my_iterator &it) {
-		it = std::find_if(vect.begin(), vect.end(), pred);
-		return it != vect.end();
+		my_iterator itTmp;
+		itTmp = std::find_if(vect.begin(), vect.end(), pred);
+		if (itTmp == vect.end()) return false;
+		it = itTmp;
+		return true;
 	}
 
 	template<class Comp>
 	bool find(Comp &comp, P p, my_iterator &it) {
+		my_iterator itTmp;
 		std::sort(vect.begin(), vect.end(), comp);
-		it = std::lower_bound(vect.begin(), vect.end(), p, comp);
-		if (it == vect.end()) return false;
-		return !comp(p, *it);
+		itTmp = std::lower_bound(vect.begin(), vect.end(), p, comp);
+		if (itTmp == vect.end() || comp(p, *itTmp)) return false;
+		it = itTmp;
+		return true;
 	}
 
 	template<class Acc>
@@ -355,22 +368,22 @@ public:
 	}
 
 	bool findByLibraryCardBinary(int card, my_iterator &it) {
-		Book book = Book(card, "", Date(), Date(), "", "", 1990, "", 0);
+		Book book = Book(card, "", Date(), Date(), "", "", 1990, "", dec::decimal_cast<2>(0));
 		return find(LibraryCardComp(), book, it);
 	}
 
 	bool findByAuthorBinary(std::string author, my_iterator &it) {
-		Book book = Book(0, "", Date(), Date(), author, "", 1990, "", 0);
+		Book book = Book(0, "", Date(), Date(), author, "", 1990, "", dec::decimal_cast<2>(0));
 		return find(AuthorComp(), book, it);
 	}
 
 	bool findByPublishingHouseBinary(std::string house, my_iterator &it) {
-		Book book = Book(0, "", Date(), Date(), "", "", 1990, house, 0);
+		Book book = Book(0, "", Date(), Date(), "", "", 1990, house, dec::decimal_cast<2>(0));
 		return find(PublishingHouseComp(), book, it);
 	}
 
 	bool findByReturnDateBinary(Date date, my_iterator &it) {
-		Book book = Book(0, "", Date(), date, "", "", 1990, "", 0);
+		Book book = Book(0, "", Date(), date, "", "", 1990, "", dec::decimal_cast<2>(0));
 		return find(ReturnDateComp(), book, it);
 	}
 
@@ -422,6 +435,47 @@ public:
 };
 
 
+bool checkInt(std::string str) {
+	if (str.length() == 0) {
+		return false;
+	}
+	size_t i = 0;
+	while ((i < str.length()) && ((str[i] == ' ') || (str[i] == '	'))) {
+		++i;
+	}
+	if (i >= str.length()) {
+		return false;
+	}
+	int sign = 1;
+	switch (str[i]) {
+	case '-': {
+		sign = -1;
+		++i;
+		break;
+	}
+	case '+': {
+		++i;
+		break;
+	}
+	default: {
+		break;
+	}
+	}
+
+	size_t j = i;
+	bool result = j < str.length();
+	while ((j < str.length()) && (result)) {
+		result = (str[j] >= '0') && (str[j] <= '9');
+		++j;
+	}
+
+	while ((j < str.length()) && ((str[j] == ' ') || (str[j] == '	'))) {
+		++j;
+	}
+
+	return (j == str.length()) && (result);
+}
+
 int inputInt(std::string message, int min = 0, int max = 10000) {
 	std::string str;
 	int res;
@@ -433,8 +487,8 @@ int inputInt(std::string message, int min = 0, int max = 10000) {
 			if (str == "skip") return -1;
 			if (str == "exit") throw "exit";
 			res = std::stoi(str);
-			while (res < min || res > max) {
-				std::cout << "Error (value < " << min << " or value > " << max << "). Repeat: ";
+			while (res < min || res > max || !checkInt(str)) {
+				std::cout << "Wrong value. Repeat: ";
 				std::cin >> res;
 			}
 			return res;
@@ -463,6 +517,75 @@ Date inputDate(std::string message = "Input date in format dd/mm/yyyy : ") {
 	return date;
 }
 
+bool checkPrice(std::string price) {
+	if (price.length() == 0) {
+		return false;
+	}
+
+	size_t i = 0;
+	while ((i < price.length()) && ((price[i] == ' ') || (price[i] == '	'))) {
+		++i;
+	}
+
+	if (i >= price.length()) {
+		return false;
+	}
+
+	int sign = 1;
+
+	switch (price[i]) {
+		case '-': {
+			sign = -1;
+			++i;
+			break;
+		}
+
+		case '+': {
+			++i;
+			break;
+		}
+
+		default: {
+			break;
+		}
+	}
+
+	size_t j = i;
+	bool result = j < price.length();
+	int dot_number = 0;
+	while ((j < price.length()) && (result)) {
+		if (price[j] == '.') {
+			++dot_number;
+		}
+		result = ((price[j] >= '0') && (price[j] <= '9')) || ((price[j] == '.') && (dot_number <= 1));
+		++j;
+	}
+
+	while ((j < price.length()) && ((price[j] == ' ') || (price[j] == '	'))) {
+		++j;
+	}
+
+	return (j == price.length()) && (result);
+}
+
+dec::decimal<2> inputPrice(std::string message = "Input price : ") {
+	std::string tmp;
+	dec::decimal<2> res;
+
+	std::cout << message;
+	bool ok = false;
+
+	while (!ok) {
+		std::cin >> tmp;
+		if (tmp == "exit") throw "exit";
+		if (tmp == "skip") return dec::decimal_cast<2>(-1);
+		ok = checkPrice(tmp);
+		if (!ok) std::cout << "Wrong price. Repeat: ";
+	}
+	dec::fromString(tmp, res);
+	return res;
+}
+
 Book inputBook() {
 	int libraryCard;
 	std::string subSurname;
@@ -472,7 +595,7 @@ Book inputBook() {
 	std::string title;
 	int publicationYear;
 	std::string publishingHouse;
-	int price;
+	dec::decimal<2> price;
 
 	std::cout << "-------------BOOK-------------" << std::endl;
 	std::cout << "Type \"exit\" to exit" << std::endl;
@@ -501,7 +624,7 @@ Book inputBook() {
 	std::cin >> publishingHouse;
 	if (publishingHouse == "exit") throw "exit";
 
-	price = inputInt("Enter price: ");
+	price = inputPrice("Enter price: ");
 
 	return Book(libraryCard, subSurname, issueDate, returnDate, author, title, publicationYear, publishingHouse, price);
 }
@@ -510,6 +633,7 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 	std::cout << "-------------BOOK-------------" << std::endl;
 	std::cout << "Type \"skip\" to skip" << std::endl;
 	int intTmp;
+	dec::decimal<2> decTmp;
 	std::string strTmp;
 	Date dateTmp;
 	Date defDt = Date();
@@ -519,39 +643,42 @@ void inputBookChanged(std::vector<Book>::iterator &it) {
 
 	std::cout << "Enter subscriber surname(dafault: " + it->subSurname + "): ";
 	std::cin >> strTmp;
-	if (strTmp != "skip") it->subSurname = strTmp;
 	if (strTmp == "exit") throw "exit";
+	if (strTmp != "skip") it->subSurname = strTmp;
 
 	strTmp = it->issueDate.ToString();
-	dateTmp = inputDate("Enter date in format(dd/mm/yyyy)(default: " + strTmp + "):");
+	dateTmp = inputDate("Enter issue date(dd/mm/yyyy)(default: " + strTmp + "):");
 	if (dateTmp == defDt);
 	else it->issueDate = dateTmp;
 
 	strTmp = it->returnDate.ToString();
-	dateTmp = inputDate("Enter date in format(dd/mm/yyyy)(default: " + strTmp + "):");
+	dateTmp = inputDate("Enter return date(dd/mm/yyyy)(default: " + strTmp + "):");
 	if (dateTmp == defDt);
 	else it->returnDate= dateTmp;
 
 	std::cout << "Enter author(dafault: " + it->author + "): ";
 	std::cin >> strTmp;
-	if (strTmp != "skip") it->author = strTmp;
 	if (strTmp == "exit") throw "exit";
+	if (strTmp != "skip") it->author = strTmp;
 
 	std::cout << "Enter title(dafault: " + it->title + "): ";
 	std::cin >> strTmp;
-	if (strTmp != "skip") it->title = strTmp;
 	if (strTmp == "exit") throw "exit";
+	if (strTmp != "skip") it->title = strTmp;
+	
 
 	intTmp = inputInt("Enter publication year(default: " + std::to_string(it->publicationYear) + "): ", 1900, 2017);
 	if (intTmp != -1) it->publicationYear = intTmp;
 
 	std::cout << "Enter publishing house(dafault: " + it->publishingHouse + "): ";
 	std::cin >> strTmp;
-	if (strTmp != "skip") it->publishingHouse = strTmp;
 	if (strTmp == "exit") throw "exit";
+	if (strTmp != "skip") it->publishingHouse = strTmp;
+	
 
-	intTmp = inputInt("Enter price(default: " + std::to_string(it->price) + "): ");
-	if (intTmp != -1) it->price = intTmp;
+	decTmp = inputPrice("Enter price(default: " + dec::toString(it->price) + "): ");
+	if (decTmp != dec::decimal_cast<2>(-1))
+		it->price = intTmp;
 }
 
 void consoleInput(MyContainer &cont) {
@@ -723,8 +850,10 @@ int main() {
 			}
 			if (n != 0) {
 				printMenuFindParam();
-				n = inputInt("Enter the command: ", 1, 4);
+				n = inputInt("Enter the command: ", 0, 4);
 				switch (n) {
+				case 0:
+					break;
 				case 1://Library card
 					if (binarSearch)
 						found = cont.findByLibraryCardBinary(inputInt("Enter library card: "), it);
@@ -750,49 +879,46 @@ int main() {
 						found = cont.findByPublishingHouse(str, it);
 					break;
 				case 4://Return date
-					std::cout << "Enter return date: ";
-					std::cin >> str;
-					Date date = Date();
-					date.TryStrToDate(str);
-
 					if (binarSearch)
-						found = cont.findByReturnDateBinary(date, it);
+						found = cont.findByReturnDateBinary(inputDate("Enter return date: "), it);
 					else
-						found = cont.findByReturnDate(date, it);
+						found = cont.findByReturnDate(inputDate("Enter return date: "), it);
 					break;
 				}
-				if (found) {
-					std::cout << "Record found \n";
-					printAction();
-					n = inputInt("Enter the command: ", 0, 3);
-					while (n != 0) {
-						switch (n) {
-						case 1:
-							printCaption();
-							std::cout << *it;
-							break;
-						case 2:
-							try {
-								inputBookChanged(it);
-							}
-							catch (const char*) {
-								break;
-							}
-							break;
-						case 3:
-							cont.remove(it);
-							std::cout << "Record was deleted" << std::endl;
-							break;
-						case 0:
-							break;
-						}
-						if (n == 3) break;
+				if (n != 0) {
+					if (found) {
+						std::cout << "Record found \n";
 						printAction();
 						n = inputInt("Enter the command: ", 0, 3);
+						while (n != 0) {
+							switch (n) {
+							case 1:
+								printCaption();
+								std::cout << *it;
+								break;
+							case 2:
+								try {
+									inputBookChanged(it);
+								}
+								catch (const char*) {
+									break;
+								}
+								break;
+							case 3:
+								cont.remove(it);
+								std::cout << "Record was deleted" << std::endl;
+								break;
+							case 0:
+								break;
+							}
+							if (n == 3) break;
+							printAction();
+							n = inputInt("Enter the command: ", 0, 3);
+						}
 					}
+					else
+						std::cout << "Record not found \n";
 				}
-				else
-					std::cout << "Record not found \n";
 			}
 			break;
 		case 4://ADD
@@ -805,8 +931,10 @@ int main() {
 			break;
 		case 5://SUBSET
 			printMenuFindParam();
-			n = inputInt("Enter the command: ", 1, 4);
+			n = inputInt("Enter the command: ", 0, 4);
 			switch (n) {
+			case 0:
+				break;
 			case 1://Library card
 				subcont = cont.findSubSetByLibraryCard(inputInt("Enter library card: "));
 				break;
@@ -824,25 +952,27 @@ int main() {
 				subcont = cont.findSubSetByReturnDate(inputDate("Enter return date: "));
 				break;
 			}
-			if (subcont.size() == 0) {
-				std::cout << "Subset is emty!" << std::endl;
-				break;
-			}
-			else {
-				std::cout << std::endl << subcont.size() << " record(s) found!" << std::endl;
-			}
-			printMenuConsoleFile();
-			n = inputInt("Enter the command: ", 0, 2);
-			switch (n) {
-			case 1:
-				consoleOutput(subcont);
-				break;
-			case 2:
-				FName = output_file_name();
-				subcont.fileOutput(std::fstream(FName, std::ios::out));
-				break;
-			case 3:
-				break;
+			if (n != 0) {
+				if (subcont.size() == 0) {
+					std::cout << "Subset is emty!" << std::endl;
+					break;
+				}
+				else {
+					std::cout << std::endl << subcont.size() << " record(s) found!" << std::endl;
+				}
+				printMenuConsoleFile();
+				n = inputInt("Enter the command: ", 0, 2);
+				switch (n) {
+				case 1:
+					consoleOutput(subcont);
+					break;
+				case 2:
+					FName = output_file_name();
+					subcont.fileOutput(std::fstream(FName, std::ios::out));
+					break;
+				case 0:
+					break;
+				}
 			}
 			break;
 		case 0://EXIT
